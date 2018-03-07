@@ -3,11 +3,13 @@ import datetime
 import time
 
 
-class Game():
+class Battleroyale():
 
     def __init__(self, client, get_language_script, mods_list):
         self.client = client
-        self.get_language_script = get_language_script
+        def get_language (option):
+            return get_language_script('BATTLEROYALE', option)
+        self.get_language_script = get_language
         self.mods_list = mods_list
         self.bets = []
         self.winner = None

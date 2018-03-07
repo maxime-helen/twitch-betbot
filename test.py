@@ -2,7 +2,8 @@ import sys
 import unittest
 
 testmodules = [
-    'test.game'
+    'test.battleroyale',
+    'test.cs'
 ]
 
 suite = unittest.TestSuite()
