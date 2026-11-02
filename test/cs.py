@@ -11,45 +11,51 @@ sys.path.insert(0, '../lib')
 
 from mock.Socket import Socket
 from lib.TwitchClient import TwitchClient
-from src.Game import Game
+from src.Cs import Cs
 
 cfg = ConfigParser.ConfigParser()
 cfg.read(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'language.cfg'))
 
+HOST = "0.0.0.0" 
 PORT = 1507
-BOTNAME = "BetBot"
+BOTNAME = "battleroyale-test"
 CHATNAME = "foo"
 READBUFFER = 2048
 LANGUAGE = "EN"
-VERBOSE = True
+GAME = "CSGO"
 
-def get_language_script (option):
-    return cfg.get(LANGUAGE, option)
+VERBOSE = True
+def get_language_script (game, option):
+    return cfg.get("%s-%s"%(game, LANGUAGE), option)
+
+COMMAND_SENT_MESSAGE2 = "PRIVMSG foo :%s\r\n" % (get_language_script(GAME, "start_bet"))
+COMMAND_SENT_MESSAGE3 = "PRIVMSG foo :%s\r\n" % (get_language_script(GAME, "stop_bet"))
+COMMAND_SENT_MESSAGE4 = "PRIVMSG foo :tefa %s\r\n"  % (get_language_script(GAME, "final_winner"))
 
 def get_command_status_msg (state):
-    return "PRIVMSG foo :%s %s\r\n" % (get_language_script("status"), state)
+    return "PRIVMSG foo :%s %s\r\n" % (get_language_script(GAME, "status"), state)
 
 def get_command_last_winner_msg (last_winner):
-    return "PRIVMSG foo :%s %s\r\n" % (get_language_script("last_winner"), last_winner)
+    return "PRIVMSG foo :%s %s\r\n" % (get_language_script(GAME, "last_winner"), last_winner)
 
 def get_command_final_winner_msg (winner):
-    return "PRIVMSG foo :%s %s\r\n" % (get_language_script("final_winner"), winner)
+    return "PRIVMSG foo :%s %s\r\n" % (get_language_script(GAME, "final_winner"), winner)
 
 def get_command_final_no_winner_msg ():
-    return "PRIVMSG foo :%s\r\n" % (get_language_script("final_no_winner"))
+    return "PRIVMSG foo :%s\r\n" % (get_language_script(GAME, "final_no_winner"))
 
-COMMAND_START_BET = "PRIVMSG foo :%s\r\n" % (get_language_script("start_bet"))
-COMMAND_STOP_BET = "PRIVMSG foo :%s\r\n" % (get_language_script("stop_bet"))
-COMMAND_NO_LAST_WINNER = "PRIVMSG foo :%s\r\n" % (get_language_script("no_last_winner"))
-COMMAND_CMD_BET = "PRIVMSG foo :Moderators commands : !startbet, !stopbet, !statusbet, !final <final top>, !lastwinner\r\n"
+COMMAND_START_BET = "PRIVMSG foo :%s\r\n" % (get_language_script(GAME, "start_bet"))
+COMMAND_STOP_BET = "PRIVMSG foo :%s\r\n" % (get_language_script(GAME, "stop_bet"))
+COMMAND_NO_LAST_WINNER = "PRIVMSG foo :%s\r\n" % (get_language_script(GAME, "no_last_winner"))
+COMMAND_CMD_BET = "PRIVMSG foo :Moderators commands : !startbet, !stopbet, !statusbet, !winner|loser, !lastwinner\r\n"
 
 # Test ws connection with node-compeer
-class GameTest(testing.AsyncTestCase):
+class CsTest(testing.AsyncTestCase):
 
     def __before(self, messageBuffer, onmessage):
         socket = Socket(messageBuffer, onmessage)
         self.client = TwitchClient(self.io_loop, socket, BOTNAME, CHATNAME, READBUFFER, VERBOSE)
-        self.game = Game(self.client, get_language_script, ["foo"])
+        self.game = Cs(self.client, get_language_script, ["gr33nplant"])
 
     def __timeout(self):
         self.io_loop.stop()
@@ -57,46 +63,13 @@ class GameTest(testing.AsyncTestCase):
 
     def __add_timeout(self, timeout):
         self.io_loop.add_timeout(time.time() + timeout, self.__timeout)
-        
-    # Test !cmdbet
-    def test_startbet(self):
-        def onsend(msg):
-            if self.open_flag:
-                self.assertEqual(msg, COMMAND_CMD_BET)
-                self.io_loop.stop()
-
-        messageBuffer = [
-            "End of /NAMES list\n",
-            ":foo!foo@foo.tmi.twitch.tv PRIVMSG #hello_world :!cmdbet\r\n"
-        ]
-        
-        self.__add_timeout(1)
-        self.__before(messageBuffer, onsend)
-        
-        self.open_flag = False
-
-        @self.client.on("open")
-        def onOpen():
-            self.open_flag = True
-
-        @self.client.on("message")
-        def onMessage(msg):
-            self.assertEqual(self.open_flag, True)
-            self.assertEqual(msg['command'], "cmdbet")
-
-
-        port = 1111
-        oauthKey = 'dsaf6+9+987'
-        self.client.connect(port, oauthKey)
-        self.io_loop.start()
-        
- 
+         
     # Test "top <bet>" format
     def test_bet_format(self):                
 
         messageBuffer = [
             "End of /NAMES list\n",
-            ":foo!foo@foo.tmi.twitch.tv PRIVMSG #hello_world :!top 111\r\n"
+            ":gr33nplant!gr33nplant@gr33nplant.tmi.twitch.tv PRIVMSG #toytoy_ :!win 16-8\r\n"
         ]
         
         self.__add_timeout(1)
@@ -111,8 +84,8 @@ class GameTest(testing.AsyncTestCase):
         @self.client.on("message")
         def onMessage(msg):
             self.assertEqual(self.open_flag, True)
-            self.assertEqual(msg['command'], "top")
-            self.assertEqual(msg['message'], "111")
+            self.assertEqual(msg['command'], "win")
+            self.assertEqual(msg['message'], "16-8")
             self.io_loop.stop()
 
         port = 1111
@@ -129,7 +102,7 @@ class GameTest(testing.AsyncTestCase):
 
         messageBuffer = [
             "End of /NAMES list\n",
-            ":foo!foo@foo.tmi.twitch.tv PRIVMSG #hello_world :!startbet\r\n"
+            ":gr33nplant!gr33nplant@gr33nplant.tmi.twitch.tv PRIVMSG #toytoy_ :!startbet\r\n"
         ]
         
         self.__add_timeout(1)
@@ -157,9 +130,10 @@ class GameTest(testing.AsyncTestCase):
         self.index_top_saved = 0
         self.index_onsend = 0
         
-        def check_fisrt_top_saved(username, bet):
+        def check_top_saved(username, bet, score):
             def callback() :
-                user = self.game.get_username_by_first_bet(bet)
+                user = self.game.get_first_username_by_bet(bet, score)
+                print user
                 self.assertEqual(username, user)
             return callback
         
@@ -184,12 +158,12 @@ class GameTest(testing.AsyncTestCase):
             empty_callback(),
             check_state('lobby'),
             empty_callback(),
-            check_fisrt_top_saved("foo", 123),
-            check_fisrt_top_saved("foo", 11),
-            check_fisrt_top_saved("foo", 11),
+            check_top_saved("gr33nplant", "win", "16-3"),
+            check_top_saved("gr33nplant", "win", "3-16"),
+            check_top_saved("tefa", "lose", "12-16"),
             check_state('game'),
             empty_callback(),
-            check_final("foo"),
+            check_final("tefa"),
             empty_callback(),
             empty_callback()
         ]
@@ -207,8 +181,8 @@ class GameTest(testing.AsyncTestCase):
             check_onsend_message(get_command_status_msg('lobby')),
             check_onsend_message(COMMAND_STOP_BET),
             check_onsend_message(get_command_status_msg('game')),
-            check_onsend_message(get_command_final_winner_msg('foo')),
-            check_onsend_message(get_command_last_winner_msg('foo')),
+            check_onsend_message(get_command_final_winner_msg('tefa')),
+            check_onsend_message(get_command_last_winner_msg('tefa')),
             check_onsend_message(get_command_status_msg('init'))
         ]
         
@@ -221,18 +195,18 @@ class GameTest(testing.AsyncTestCase):
 
         messageBuffer = [
             "End of /NAMES list\n",
-            ":foo!foo@foo.tmi.twitch.tv PRIVMSG #hello_world :!lastwinner\r\n",
-            ":foo!foo@foo.tmi.twitch.tv PRIVMSG #hello_world :!statusbet\r\n",
-            ":foo!foo@foo.tmi.twitch.tv PRIVMSG #hello_world :!startbet\r\n",
-            ":foo!foo@foo.tmi.twitch.tv PRIVMSG #hello_world :!statusbet\r\n",
-            ":foo!foo@foo.tmi.twitch.tv PRIVMSG #hello_world :!top 123\r\n",
-            ":foo!foo@foo.tmi.twitch.tv PRIVMSG #hello_world :!top 11\r\n",
-            ":bar!bar@bar.tmi.twitch.tv PRIVMSG #hello_world :!top 11\r\n",
-            ":foo!foo@foo.tmi.twitch.tv PRIVMSG #hello_world :!stopbet\r\n",
-            ":foo!foo@foo.tmi.twitch.tv PRIVMSG #hello_world :!statusbet\r\n",
-            ":foo!foo@foo.tmi.twitch.tv PRIVMSG #hello_world :!final 11\r\n",
-            ":foo!foo@foo.tmi.twitch.tv PRIVMSG #hello_world :!lastwinner\r\n",
-            ":foo!foo@foo.tmi.twitch.tv PRIVMSG #hello_world :!statusbet\r\n"
+            ":gr33nplant!gr33nplant@gr33nplant.tmi.twitch.tv PRIVMSG #toytoy_ :!lastwinner\r\n",
+            ":gr33nplant!gr33nplant@gr33nplant.tmi.twitch.tv PRIVMSG #toytoy_ :!statusbet\r\n",
+            ":gr33nplant!gr33nplant@gr33nplant.tmi.twitch.tv PRIVMSG #toytoy_ :!startbet\r\n",
+            ":gr33nplant!gr33nplant@gr33nplant.tmi.twitch.tv PRIVMSG #toytoy_ :!statusbet\r\n",
+            ":gr33nplant!gr33nplant@gr33nplant.tmi.twitch.tv PRIVMSG #toytoy_ :!win 16-3\r\n",
+            ":gr33nplant!gr33nplant@gr33nplant.tmi.twitch.tv PRIVMSG #toytoy_ :!win 12-16\r\n",
+            ":tefa!tefa@tefa.tmi.twitch.tv PRIVMSG #toytoy_ :!lose 12-16\r\n",
+            ":gr33nplant!gr33nplant@gr33nplant.tmi.twitch.tv PRIVMSG #toytoy_ :!stopbet\r\n",
+            ":gr33nplant!gr33nplant@gr33nplant.tmi.twitch.tv PRIVMSG #toytoy_ :!statusbet\r\n",
+            ":gr33nplant!gr33nplant@gr33nplant.tmi.twitch.tv PRIVMSG #toytoy_ :!loser 16-12\r\n",
+            ":gr33nplant!gr33nplant@gr33nplant.tmi.twitch.tv PRIVMSG #toytoy_ :!lastwinner\r\n",
+            ":gr33nplant!gr33nplant@gr33nplant.tmi.twitch.tv PRIVMSG #toytoy_ :!statusbet\r\n"
         ]
         
                
@@ -255,7 +229,6 @@ class GameTest(testing.AsyncTestCase):
         oauthKey = 'dsaf6+9+987'
         self.client.connect(port, oauthKey)
         self.io_loop.start()
-
     
     
 if __name__ == '__main__':
